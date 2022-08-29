@@ -1,0 +1,34 @@
+version: '1.0'
+
+#Data pipeline parameters
+database:
+  name: 'OHLC.db'
+  ticker: 'GME'
+  start_date: '2022-08-01'
+  end_date: '2022-08-02'
+  freq: 'C'
+
+#Screener parameters
+screener:
+  return_threshold: 0.01
+  recurrence_threshold: 0.6
+
+#Forecast parameters
+forecast:
+  continuous:
+    fh: 1
+    fold: 1
+    system_log: False
+  discrete:
+    fh: 1
+    fold: 1
+    system_log: False
+  name: 'forecast_model'
+
+#Backtesting parameters
+backtesting:
+  start_date: '2020-01-01'
+  end_date: None
+  cash: 10000
+  commission: 0.005
+  exclusive_orders: True
