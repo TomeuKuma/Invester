@@ -9,7 +9,7 @@ class Bcktest:
         self.db_name = db_name
         self.ticker_name = ticker_name
         self.threshold = 0.01
-        self.comission = 0.0005
+        self.commission = 0.0005
         self.start_date = None
         self.end_date = None
         self.initial_cash = 10000
@@ -49,7 +49,7 @@ class Bcktest:
         df = self.data
         self.sell_price = df.loc[date, 'Open'] * (1 + self.threshold)
         self.cash = self.cash + (self.sell_price * self.stock_units)
-        self.day_profit = (((self.sell_price * self.stock_units) * (1-(self.comission*2))) - self.equity)
+        self.day_profit = (((self.sell_price * self.stock_units) * (1-(self.commission*2))) - self.equity)
         self.day_return = self.day_profit / self.equity
         self.stock_units = 0
         self.equity = 0
@@ -87,7 +87,6 @@ class Bcktest:
 
 
 bt = Bcktest('OHLC.db', 'GME')
-bt.set_strategy()
 df = bt.run()
 print(df)
 

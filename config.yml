@@ -15,7 +15,9 @@ screener:
 
 #Forecast parameters
 forecast:
+  loop_period: 100 #Correlative days forecasted
   continuous:
+    model: 'armina'
     fh: 1
     fold: 1
     system_log: False
@@ -23,12 +25,13 @@ forecast:
     fh: 1
     fold: 1
     system_log: False
-  name: 'forecast_model'
+  save_name: 'forecast_model'
 
 #Backtesting parameters
 backtesting:
-  start_date: '2020-01-01'
+  threshold: 0.01
+  commission: 1 #Absolute amount
+  start_date: None
   end_date: None
-  cash: 10000
-  commission: 0.005
-  exclusive_orders: True
+  initial_cash: 10000
+

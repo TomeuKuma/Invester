@@ -36,6 +36,8 @@ class DataBase:
                                'Support_level': Float,
                                'Pct_to_support': Float,
                                'Profit_day': Integer,
+                               'High_range_forec': Float,
+                               'Profit_day_forec': Float,
                                'High_range_hat': Float,
                                'Low_range_hat': Float,
                                'Profit_day_hat': Float}
@@ -313,15 +315,22 @@ class DataBase:
     def set_predictions(self):
 
         """Set IA predicted values for next day based on historical data"""
-        print(self.data)
+        #Sustituir los algoritmos por predicciones en el dia anterior al predicho
         df = self.data
-        df.High_range_hat = df.High_range
-        df.Low_range_hat = df.Low_range
-        df.Profit_day_hat = df.Profit_day
+        df.loc[:, ['High_range_hat']] = df.High_range.shift(-1) #Suponemos prediccion 100% acertada
+        df.loc[:, ['High_range_forec']] = df.High_range_hat.shift(1)
+        df.loc[:, ['High_range_error']] = df.High_range - df.High_range_forec
+        df.loc[:, ['Profit_day_hat']] = df.Profit_day.shift(-1) #Suponemos prediccion 100% acertada
+        df.loc[:, ['Profit_day_forec']] = df.Profit_day_hat.shift(1)
+        df.loc[:,['Profit_day_error']] = df.Profit_day - df.Profit_day_forec
+        df.loc[:,['Low_range_hat']] = df.Low_range.shift(-1) #Suponemos prediccion 100% acertada
+        df.loc[:,['Low_range_forec']] = df.Low_range_hat.shift(1)
+        df.loc[:,['Lower_day_error']] = df.Low_range - df.Low_range_forec
+        df = df.dropna()
+
         self.data = df
         print('Generating forecast values for next day')
         print('Forecast values for next day generated!')
-        pass
 
     def enrich_data(self, return_threshold=0.01):
 
@@ -384,21 +393,6 @@ class DataBase:
             print(f'Data load from {self.db_name}/{self.ticker_name}')
             return self.data
 
-    def load_for_bt(self, ticker_name, chop_start=None, chop_end=None):
-        self.ticker_name = ticker_name
-        if not self.exists():
-            pass
-        else:
-            df = pd.read_sql_table(self.ticker_name, con=self.engine)
-            df.set_index('Date', inplace=True)
-            df = df[chop_start:chop_end]
-            df.Profit_day_hat = pd.Series(df.Profit_day).shift(-1, fill_value=0)
-            #df.High_range_hat = pd.Series(df.High_range).shift(-1, fill_value=0)
-            #df.Close = df.Open * 1 + df.High
-            self.data = df
-            print(f'Data load from {self.db_name}/{self.ticker_name}')
-            return self.data
-
     def last_date(self, ticker_name):
         self.ticker_name = ticker_name
         if not self.exists():
@@ -450,15 +444,15 @@ class DataBase:
 
 
 
-#db = DataBase('OHLC.db')
+db = DataBase('OHLC.db')
 #df = db.get_data('GME', start_date='2021-08-25')
 #df.set_index('Date', inplace=True)
-#db.save_data('GME', start_date='2022-01-10', end_date='2022-08-19')
+db.save_all_data('GME')
 #db.update_data('GME')
-#df = db.load_data('GME')
+df = db.load_data('GME')
 #print(df.tail(20))
 #df = db.get_data('GME', start_date='2022-01-10', end_date='2022-08-19')
 #df = db.get_data('GME', start_date='2022-08-22', end_date='2022-08-27')
-#print(df)
+print(df)
 #print(df.loc[df.Volume == 0])
 #print(df)
