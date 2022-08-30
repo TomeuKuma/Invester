@@ -15,7 +15,8 @@ screener:
 
 #Forecast parameters
 forecast:
-  loop_period: 100 #Correlative days forecasted
+  training_period: 720 #Correlative days starting at 'training period' + 'test_period' period from today
+  test_period: 100 #Correlative days forecasted from last day of 'training period'
   continuous:
     model: 'armina'
     fh: 1

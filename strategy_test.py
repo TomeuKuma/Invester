@@ -1,6 +1,9 @@
 from data_manager import DataBase
 import pandas as pd
 import numpy as np
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, roc_auc_score, average_precision_score, precision_recall_curve, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class Bcktest:
@@ -27,8 +30,7 @@ class Bcktest:
     def set_strategy(self):
         # Loads data
         db = DataBase(self.db_name)
-        df = db.load_data(self.ticker_name, chop_start=self.start_date,
-                          chop_end=self.end_date)  # .loc[:, ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
+        df = db.load_data(self.ticker_name, chop_start=self.start_date, chop_end=self.end_date)
         df.set_index('Date', inplace=True)
 
         # Set 1 if conditions have meet during session
@@ -57,12 +59,10 @@ class Bcktest:
     def sell(self, date):
         df = self.data
         self.sell_price = df.loc[date, 'Open'] * (1 + self.threshold)
-        self.day_profit = ((self.sell_price * self.stock_units) - (self.buy_price * self.stock_units)) - (
-                    self.comission * 2)
+        self.day_profit = ((self.sell_price * self.stock_units) - (self.buy_price * self.stock_units)) - (self.comission * 2)
         self.cash = self.cash + self.equity + self.day_profit
         self.day_return = self.day_profit / self.equity
         self.profit_cumsum = self.profit_cumsum + self.day_profit
-
         self.equity = 0
         df.loc[date, 'Sell_price'] = self.sell_price
         df.loc[date, 'Cash'] = self.cash
@@ -113,9 +113,55 @@ class Bcktest:
         # enviar a la base de datos
         return self.data
 
+    def confusion_matrix(self, y, y_forec):
+        df = self.data
+        cm = confusion_matrix(df[y], df[y_forec])
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot()
+        plt.show()
+
+    def aur_roc(self, y, y_forec):
+        df = self.data
+        sns.set()
+        fpr, tpr, thresholds = roc_curve(df[y], df[y_forec])
+        plt.plot(fpr, tpr)
+        plt.plot(fpr, fpr, linestyle='--', color='k')
+        plt.xlabel('False positive rate')
+        plt.ylabel('True positive rate')
+        AUROC = np.round(roc_auc_score(df[y], df[y_forec]), 2)
+        plt.title(f'Logistic Regression Model ROC curve; AUROC: {AUROC}')
+        plt.show()
+
+    def precision_recall(self, y, y_forec):
+        df = self.data
+        average_precision = average_precision_score(df[y], df[y_forec])
+        precision, recall, thresholds = precision_recall_curve(df[y], df[y_forec])
+        plt.plot(recall, precision, marker='.', label='Logistic')
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.legend()
+        plt.title(f'Precision Recall Curve. AUPRC: {average_precision}')
+        plt.show()
+
+    def evaluate(self, y, y_forec):
+        df = self.data
+        print(f"Precision Score: {precision_score(df[y], df[y_forec])}")
+        print(f"Recall Score:    {recall_score(df[y], df[y_forec])}")
+        print(f"F1 Score:        {f1_score(df[y], df[y_forec])}")
+
+
+
+
+
+
+
+
+
 bt = Bcktest('OHLC.db', 'GME', '2020-01-02')
-df = bt.run()
-print(df)
+bt.run()
+#bt.evaluate('Profit_day', 'Profit_day_forec')
+bt.evaluate('Profit_day', 'Profit_day_forec')
+#print(df)
 
 
 #bt = Backtest(df, SmaCross, cash=10000, commission=.005, exclusive_orders=True)
