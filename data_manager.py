@@ -444,15 +444,15 @@ class DataBase:
 
 
 
-db = DataBase('OHLC.db')
+#db = DataBase('OHLC.db')
 #df = db.get_data('GME', start_date='2021-08-25')
 #df.set_index('Date', inplace=True)
-db.save_all_data('GME')
+#db.save_all_data('GME')
 #db.update_data('GME')
-df = db.load_data('GME')
+#df = db.load_data('GME')
 #print(df.tail(20))
 #df = db.get_data('GME', start_date='2022-01-10', end_date='2022-08-19')
 #df = db.get_data('GME', start_date='2022-08-22', end_date='2022-08-27')
-print(df)
+#print(df)
 #print(df.loc[df.Volume == 0])
 #print(df)
