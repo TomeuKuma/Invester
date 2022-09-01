@@ -16,16 +16,20 @@ class Bcktest:
         self.comission = 1
         self.start_date = start_date
         self.end_date = end_date
-        self.initial_cash = 10000
-        self.cash = 10000
-        self.equity = 0
+        self.initial_cash = 1000
+        self.cash = self.initial_cash
+        self.equity = self.initial_cash - self.cash
         self.stock_units = 0
         self.buy_price = 0
         self.sell_price = 0
         self.day_profit = 0
         self.day_return = 0
         self.profit_cumsum = 0
-        self.data = pd.DataFrame()
+        self.return_cumsum = 0
+        self.streak_list = []
+        self.mean_streak = np.mean(self.streak_list)
+        #self.max_streak = np.amax(np.array(self.streak_list))
+        #self.data = pd.DataFrame()
 
     def set_strategy(self):
         # Loads data
@@ -51,6 +55,8 @@ class Bcktest:
         df.loc[date, 'Stock_units'] = self.stock_units
         df.loc[date, 'Equity'] = self.equity
         df.loc[date, 'Cash'] = self.cash
+        df.loc[date, 'Profit_cumsum'] = self.profit_cumsum
+        df.loc[date, 'Return_cumsum'] = self.return_cumsum
         df = df.fillna(0)
         self.data = df
 
@@ -61,22 +67,42 @@ class Bcktest:
         self.sell_price = df.loc[date, 'Open'] * (1 + self.threshold)
         self.day_profit = ((self.sell_price * self.stock_units) - (self.buy_price * self.stock_units)) - (self.comission * 2)
         self.cash = self.cash + self.equity + self.day_profit
-        self.day_return = self.day_profit / self.equity
+        self.day_return = self.day_profit / self.equity ######
         self.profit_cumsum = self.profit_cumsum + self.day_profit
-        self.equity = 0
+        self.return_cumsum = ((self.cash + self.equity) - self.initial_cash) / self.initial_cash
+        self.stock_units = self.stock_units - self.stock_units
+        self.equity = self.equity - self.equity
         df.loc[date, 'Sell_price'] = self.sell_price
         df.loc[date, 'Cash'] = self.cash
         df.loc[date, 'Equity'] = self.equity
         df.loc[date, 'Day_profit'] = self.day_profit
         df.loc[date, 'Day_return'] = self.day_return
         df.loc[date, 'Profit_cumsum'] = self.profit_cumsum
-        df.loc[date, 'Return_cumsum'] = (self.cash - self.initial_cash) / self.initial_cash
+        df.loc[date, 'Return_cumsum'] = self.return_cumsum
         df.loc[date, 'Stock_units'] = self.stock_units
         df = df.fillna(0)
         self.data = df
         self.day_profit = 0
         self.day_return = 0
-        self.stock_units = 0
+
+        return self.data
+
+    def hold(self, date):
+        df = self.data
+        self.day_profit = 0
+        self.day_return = 0
+        df.loc[date, 'Buy_price'] = 0
+        df.loc[date, 'Sell_price'] = 0
+        df.loc[date, 'Cash'] = self.cash
+        df.loc[date, 'Equity'] = self.equity
+        df.loc[date, 'Stock_units'] = self.stock_units
+        df.loc[date, 'Day_profit'] = 0
+        df.loc[date, 'Day_return'] = 0
+        df.loc[date, 'Profit_cumsum'] = self.profit_cumsum
+        df.loc[date, 'Return_cumsum'] = self.return_cumsum
+        df = df.fillna(0)
+        self.data = df
+
 
         return self.data
 
@@ -100,7 +126,9 @@ class Bcktest:
         # Asignamos los valores 1 para Buy y Sell según si se han ejecutado las condiciones de set_strategy()
         self.set_strategy()
         # Iteramos para cada dia buy() y sell() en función de si son True
+        i = 0
         for date in self.data.index:
+            i = i + 1
             if self.data.loc[date, 'Buy']:
                 if self.stock_units == 0:
                     if self.cash >= self.data.loc[date, 'Open']:
@@ -109,6 +137,15 @@ class Bcktest:
             if self.data.loc[date, 'Sell']:
                 if self.stock_units > 0:
                     self.sell(date)
+
+            if not self.data.loc[date, 'Buy'] and not self.data.loc[date, 'Sell']:
+                self.hold(date)
+
+            #Streak
+            if self.data.loc[date, 'Profit_day'] != self.data.loc[date, 'Profit_day_forec']:
+                self.streak_list.append(i)
+                i = 0
+
         # reset index
         # enviar a la base de datos
         return self.data
@@ -148,19 +185,33 @@ class Bcktest:
         print(f"Precision Score: {precision_score(df[y], df[y_forec])}")
         print(f"Recall Score:    {recall_score(df[y], df[y_forec])}")
         print(f"F1 Score:        {f1_score(df[y], df[y_forec])}")
+        #print(f"Average streak:  {self.mean_streak}")
+        #print(f"Maximum streak:  {self.max_streak}")
 
+    def plot(self):
+        df = self.data
+        df.reset_index(inplace=True)
+        fig, ax = plt.subplots(2, 2, figsize=(10, 6))
+        sns.lineplot(x="Date", y="Open", color='g', data=df, ax=ax[0][0])
 
+        ax[0][0].tick_params(labelrotation=15)
+        sns.lineplot(x="Date", y="High_range", color='b', data=df, ax=ax[0][1])
 
+        ax[0][1].tick_params(labelrotation=15)
+        sns.lineplot(x="Date", y="Day_profit", color='r', data=df, ax=ax[1][0])
 
+        ax[1][0].tick_params(labelrotation = 15)
+        sns.lineplot(x="Date", y="Day_return", color ='y', data=df, ax=ax[1][1])
 
-
-
+        ax[1][1].tick_params(labelrotation=15)
+        fig.tight_layout(pad=1.25)
+        plt.show()
 
 
 bt = Bcktest('OHLC.db', 'GME', '2020-01-02')
 bt.run()
 #bt.evaluate('Profit_day', 'Profit_day_forec')
-bt.evaluate('Profit_day', 'Profit_day_forec')
+bt.plot()
 #print(df)
 
 
