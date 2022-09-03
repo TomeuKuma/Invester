@@ -322,10 +322,10 @@ class DataBase:
         df.loc[:, ['High_range_error']] = df.High_range - df.High_range_forec
         df.loc[:, ['Profit_day_hat']] = df.Profit_day.shift(-1) #Suponemos prediccion 100% acertada
         df.loc[:, ['Profit_day_forec']] = df.Profit_day_hat.shift(1)
-        df.loc[:,['Profit_day_error']] = df.Profit_day - df.Profit_day_forec
-        df.loc[:,['Low_range_hat']] = df.Low_range.shift(-1) #Suponemos prediccion 100% acertada
-        df.loc[:,['Low_range_forec']] = df.Low_range_hat.shift(1)
-        df.loc[:,['Lower_day_error']] = df.Low_range - df.Low_range_forec
+        df.loc[:, ['Profit_day_error']] = df.Profit_day - df.Profit_day_forec
+        df.loc[:, ['Low_range_hat']] = df.Low_range.shift(-1) #Suponemos prediccion 100% acertada
+        df.loc[:, ['Low_range_forec']] = df.Low_range_hat.shift(1)
+        df.loc[:, ['Lower_day_error']] = df.Low_range - df.Low_range_forec
         df = df.dropna()
 
         self.data = df

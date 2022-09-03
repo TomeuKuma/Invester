@@ -13,80 +13,90 @@ import seaborn as sns
 from collections.abc import Iterable
 from pycaret.time_series import TSForecastingExperiment
 pd.set_option('display.max_columns', None)
+from omegaconf import OmegaConf
+config = OmegaConf.load('config.yml')
 
-
-db_name = 'OHLC.db'
-ticker_name = 'GME'
-#start_date = None
-#end_date = None
-
-
-inicio = time.time()
-db = DataBase(db_name)
-#db.save_all_data(ticker_name)
-df = db.load_data(ticker_name)
-df.set_index('Date', inplace=True)
-#print(df)
-
-#data = df['2020-01-01':'2022-08-23']
-#new_data = df['2022-08-24':]
+#Data
+db_name = config.database.name
+ticker_name = config.database.ticker
 y = 'High_range'
+y_hat = 'High_range_hat'
+index = 'Date'
+
+#Parameters
 session_id = 123
 system_log = False
 verbose = False
-forecast_horizon = 3
-fold = 1
+train_forecast_horizon = 1
+pred_forecast_horizon = 1
+fold = 5
 model_name = 'forecast_model'
 
 
-#df['Date'] = pd.to_datetime(df['Date'])
-#df = df.set_index('Date').asfreq('C').fillna(0).drop(columns='index')
+def search_model(df, y):
+    ts_model = TSForecastingExperiment()
+    ts_model.setup(data=df, target=y, fh=train_forecast_horizon, system_log=system_log, verbose=verbose, fold=fold, session_id=session_id)
+    best = ts_model.compare_models(n_select = 3)
+    #tuned_best = ts_model.tune_model(best)
+    return best
+
+
+# Se le tiene que pasar un df con size [:dia actual]
+# df.loc[dia_actual: 'y_hat'] = return del predict
+def predict(df, y, model, class_threshold=None):
+    ts_model = TSForecastingExperiment()
+    ts_model.setup(data=df, target=y, fh=train_forecast_horizon, system_log=system_log, verbose=verbose, fold=fold, session_id=session_id, enforce_exogenous=False)
+    print('Extra trees model initiated. Training model...')
+    best_model = ts_model.create_model(model)
+    #pred_holdout = ts_model.predict_model(best_model)
+    print('Model prediction...')
+    prediction = ts_model.predict_model(ts_model.finalize_model(best_model), fh=pred_forecast_horizon)
+    prediction = prediction.values[0][0]
+
+    if class_threshold:
+        if prediction >= class_threshold:
+            return 1
+        else:
+            return 0
+    else:
+            return prediction
+
+
+start_time = time.time()
+print('Intiating process')
+db = DataBase('OHLC.db')
+#db.save_all_data('GME')
+data = db.load_data('GME')
+df = data.loc[:, [index, y, y_hat]]
 #print(df)
 
-ts_model = TSForecastingExperiment()
-ts_model.setup(data=df, target=y, fh=forecast_horizon, system_log=system_log, verbose=verbose, fold=fold, session_id=session_id)
-#best = ts_model.compare_models()
-best = ts_model.create_model('auto_arima')
-ts_model.plot_model(best)
-#tuned_best = ts_model.tune_model(best)
-prediction = ts_model.predict_model(best)
-#ts_model.plot_model(prediction)
-print(prediction)
-for date in prediction.index:
-    df.reset_index(inplace=True)
-    print(df.loc[df['Date'] == datetime.strptime(str(date), '%Y-%m-%d'), 'High_range'].values)
-    prediction.loc[date, 'y'] = df.loc[df['Date'] == datetime.strptime(str(date), '%Y-%m-%d'), 'High_range'].values
-    prediction.loc[date, 'error'] = prediction.loc[date, 'y'] - prediction.loc[date, 'y_pred']
-    prediction.loc[date, 'pct_deviation'] = (prediction.loc[date, 'y_pred'] - prediction.loc[date, 'y'] / prediction.loc[date, 'y']) * 100
-print(prediction)
-    #print(df.loc[df.Date == datetime.strptime(str(date), '%Y-%m-%d'), 'High_range'])
-    #prediction.loc[date, 'y'] = df.loc[date, 'High_range']
-    #prediction.loc[date, 'error'] = df.loc[date, 'High_range']
 
-ts_model = TSForecastingExperiment()
-ts_model.setup(data=df, target='Profit_day', fh=forecast_horizon, system_log=system_log, verbose=True, fold=fold, session_id=session_id)
-best = ts_model.compare_models()
-#best = ts_model.create_model('auto_arima')
-#ts_model.plot_model(best)
-#tuned_best = ts_model.tune_model(best)
-prediction = ts_model.predict_model(best)
-#ts_model.plot_model(prediction)
-print(prediction)
-for date in prediction.index:
-    df.reset_index(inplace=True)
-    print(df.loc[df['Date'] == datetime.strptime(str(date), '%Y-%m-%d'), 'High_range'].values)
-    prediction.loc[date, 'y'] = df.loc[df['Date'] == datetime.strptime(str(date), '%Y-%m-%d'), 'High_range'].values
-    prediction.loc[date, 'error'] = prediction.loc[date, 'y'] - prediction.loc[date, 'y_pred']
-    prediction.loc[date, 'pct_deviation'] = (prediction.loc[date, 'y_pred'] - prediction.loc[date, 'y'] / prediction.loc[date, 'y']) * 100
-print(prediction)
+df.set_index('Date', inplace=True)
+first_date = df.index[0]
+last_date = df.index[-1]
+start_cutoff = datetime.strptime('2015-01-02', '%Y-%m-%d')
+end_cutoff = datetime.strptime('2022-08-22', '%Y-%m-%d')
+df[y_hat] = 0
 
-#print(prediction)
+while True:
+    if end_cutoff != last_date:
+        data = df.loc[start_cutoff:end_cutoff, y]
+        prediction = predict(data, y, model='et_cds_dt', class_threshold=0.01)
+        df.loc[end_cutoff, y_hat] = prediction
+        #print(end_cutoff, prediction)
+        if end_cutoff.weekday() in [0, 1, 2, 3, 6]:
+            end_cutoff = end_cutoff + timedelta(1)
+        elif end_cutoff.weekday() == 4:
+            end_cutoff = end_cutoff + timedelta(3)
+        elif end_cutoff.weekday() == 5:
+            end_cutoff = end_cutoff + timedelta(2)
+    else:
+        data = df.loc[start_cutoff:end_cutoff, y]
+        # print(df)
+        prediction = predict(data, y, model='et_cds_dt', class_threshold=0.01)
+        df.loc[end_cutoff, y_hat] = prediction
+        #print(end_cutoff, prediction)
+        break
 
-fin = time.time()
-print('Ha tardado en ejecutarse:', fin-inicio)
-
-#best = create_model('theta')
-#tuned_best = tune_model(best)
-#plot_model(best)
-#save_model(best, model_name)
-#load_model = load_model(moadel_name)
+print("--- %s minutes ---" % ((time.time() - start_time)/60))
+print(df)

@@ -207,16 +207,19 @@ class Bcktest:
         fig.tight_layout(pad=1.25)
         plt.show()
 
+    def save(self, ticker_name, start_date, end_date=None, if_exists='replace'):
+        pass
+
 
 bt = Bcktest('OHLC.db', 'GME', '2020-01-02')
 bt.run()
 #bt.evaluate('Profit_day', 'Profit_day_forec')
-bt.plot()
+df = bt.plot()
+df
 #print(df)
 
 
 #bt = Backtest(df, SmaCross, cash=10000, commission=.005, exclusive_orders=True)
-
 #output = bt.run()
 #print(output)
 #bt.start()
